@@ -410,6 +410,7 @@ elif [ "$repo_list" ] ; then
         --from-name "$from_name" \
         --from-email "$from_email" \
         --to-email "$email" \
+        --bcc-email "$from_email" \
         --subject "$subject" \
         --content-type html
     done <"$repo_list"
