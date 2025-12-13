@@ -2,7 +2,7 @@
 #
 # Query the OpenAI API with the specified prompt and output # the response
 #
-# Copyright 2024 Diomidis Spinellis
+# Copyright 2024-2025 Diomidis Spinellis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,8 +51,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4o",
-        help="The OpenAI model to use (default: gpt-3.5-turbo)."
+        default="gpt-4.1",
+        help="The OpenAI model to use (default: gpt-4.1)."
     )
     parser.add_argument(
         "--max_tokens",

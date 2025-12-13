@@ -2,7 +2,7 @@
 #
 # Provide formative feedback on a GitHub repository's contents
 #
-# Copyright 2024 Diomidis Spinellis
+# Copyright 2024-2025 Diomidis Spinellis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -224,7 +224,7 @@ EOF
     echo "File: $path"
     # Remove non-ASCII characters, as we can't know the encoding
     cat "$repo/$path"
-  ) | query_ai --model gpt-4o-mini |
+  ) | query_ai --model gpt-4.1-mini |
     sed 's/^#/##/'
   echo
 }
@@ -324,7 +324,7 @@ EOF
     git --git-dir="$repo"/.git log --stat
   ) |
     head -n 5000 |
-  query_ai --model gpt-4o-mini
+  query_ai --model gpt-4.1-mini
 }
 
 # Provide introductory information
