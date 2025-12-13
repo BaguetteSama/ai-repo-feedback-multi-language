@@ -28,8 +28,7 @@ from email.mime.multipart import MIMEMultipart
 import io
 import os
 import re
-# this invokes the secure SMTP protocol (port 465, uses SSL)
-from smtplib import SMTP_SSL as SMTP
+from smtplib import SMTP
 import sys
 import textwrap
 import time
@@ -40,7 +39,10 @@ def send_mail(args, content):
         username = os.environ['SMTP_USERNAME']
         password = os.environ['SMTP_PASSWORD']
     except KeyError as e:
-        sys.exit(f"Unable to find {e.args[0]} environment variable\n")
+        # Consider
+        sys.exit(f"Unable to find {e.args[0]} environment variable.\n"
+                 + "Consider sourcing a private file, e.g. smtp-credentials.\n"
+                 )
     destination = [
         args.from_email,
         args.to_email,
@@ -83,8 +85,11 @@ def send_mail(args, content):
         msg.attach(part)
 
     # Send the email
-    conn = SMTP(smtp_server)
+    conn = SMTP(smtp_server, 587)
+    conn.ehlo()
     conn.set_debuglevel(False)
+    conn.starttls()
+    conn.ehlo()
     conn.login(username, password)
     try:
         conn.sendmail(args.from_email, destination, msg.as_string())
