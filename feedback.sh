@@ -379,8 +379,11 @@ report()
 # Convert Markdown input into HTML output
 md_to_html()
 {
-    pandoc --metadata pagetitle="Repository report" --css=pandoc.css \
-      --standalone --embed-resources
+  # Add an empty line to avoid Pandoc being tricked into thinking
+  # the document starts with YAML metadata and failing to parse it.
+  (echo; cat) |
+     pandoc --metadata pagetitle="Repository report" --css=pandoc.css \
+       --standalone --embed-resources
 }
 
 # Main processing starts here
