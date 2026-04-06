@@ -42,6 +42,7 @@ def query_openai(prompt, model, max_tokens):
             }
         ],
         model=model,
+        #max_tokens=max_tokens          Could try this later ig
     )
     return chat_completion.choices[0].message.content.strip()
 
@@ -51,8 +52,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4.1",
-        help="The OpenAI model to use (default: gpt-4.1)."
+        default="gpt-4o-mini",
+        help="The OpenAI model to use (default: gpt-4o-mini)."
     )
     parser.add_argument(
         "--max_tokens",

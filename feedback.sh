@@ -224,7 +224,8 @@ EOF
     echo "File: $path"
     # Remove non-ASCII characters, as we can't know the encoding
     cat "$repo/$path"
-  ) | query_ai --model gpt-4.1-mini |
+  ) | query_ai # --model gpt-4.1-mini | # IDK why it goes there automaticly weirddddd
+    |
     sed 's/^#/##/'
   echo
 }
@@ -324,7 +325,7 @@ EOF
     git --git-dir="$repo"/.git log --stat
   ) |
     head -n 5000 |
-  query_ai --model gpt-4.1-mini
+  query_ai # --model gpt-4.1-mini
 }
 
 # Provide introductory information
