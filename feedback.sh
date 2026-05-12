@@ -145,9 +145,12 @@ detect_main_language()
 
   local java_count=$(find "$repo" -name "*.java" | wc -l)
   local php_count=$(find "$repo" -name "*.php" | wc -l)
+  local ts_count=$(find "$repo" \( -name "*.ts" -o -name "*.tsx" \) | wc -l)
 
-  if (( php_count > java_count )); then
+  if (( php_count > java_count && php_count > ts_count )); then
     echo "php"
+  elif (( ts_count > java_count && ts_count > php_count )); then
+    echo "typescript"
   else
     echo "java"
   fi
@@ -160,7 +163,8 @@ get_file_language()
   case "$file" in
     *.java) echo "java" ;;
     *.php)  echo "php" ;;
-    *)      echo "unknown" ;;
+    *.ts|*.tsx) echo "typescript" ;;
+    *) echo "unknown" ;;
   esac
 }
 
@@ -178,7 +182,7 @@ heading()
   echo "Preparing section: $heading" >&2
 }
 
-# Report on the specified repo's contents
+# Report on the specified repo's contents, Failed at 700mb repository, need to add a limit, -not paths mainly
 report_contents()
 {
   local repo="$1"
@@ -201,6 +205,53 @@ EOF
 
 ###############################
 
+report_architecture_typescript()
+{
+  local repo="$1"
+
+  heading '# 3. Project architecture'
+
+  if (( $(find "$repo" -name \*.ts -o -name \*.tsx | wc -l) == 0 )); then
+    echo 'No TypeScript files were found in the repository. Nothing to report.'
+    return
+  fi
+
+  (
+    general_prompt
+    cat <<EOF
+Below you will find extracted TypeScript classes, interfaces,
+types, functions, file sizes, and directory structure.
+Provide feedback on their naming and the project's architecture as
+revealed by them.
+EOF
+
+    cd "$repo"
+
+    TS_FILES=$(
+      find . -type f \( -name "*.ts" -o -name "*.tsx" \) \
+        -not -path "*/node_modules/*" \
+        -not -path "*/dist/*" \
+        -not -path "*/build/*" \
+        -not -path "*/out/*" \
+        -size -80000c -print0 |
+      xargs -0 ls -S |
+      tail -10
+    )
+
+    printf "%s\n" "$TS_FILES" |
+      xargs -r -d '\n' sed -nE \
+      '/^\s*(export\s+)?(abstract\s+)?(class|interface|enum)\s+/p;
+       /^\s*(export\s+)?type\s+.*=/p;
+       /^\s*(export\s+)?function\s+.*\(/p;
+       /^\s*(export\s+)?const\s+.*=.*=>/p' |
+      head -200 || true
+
+    printf "%s\n" "$TS_FILES" |
+      head -10 |
+      xargs -r -d '\n' wc -l || true
+
+  ) | query_ai
+}
 
 # Report on the project's architecture php
 report_architecture_php()
@@ -274,6 +325,41 @@ EOF
     xargs wc -l
 
   ) | query_ai
+}
+
+
+report_source_code_typescript()
+{
+  local repo="$1"
+  local path="$2"
+  local number="$3"
+
+  heading "## $number File $(basename $path)"
+
+  (
+    general_prompt
+    cat <<\EOF
+Below you will find the contents of one of the project source code
+files.
+Provide feedback concerning the code's quality: design, readability,
+correctness, and maintainability in general.
+Report egregious violations of diverse TypeScript best practices,
+for example overly large functions, poor typing, or weak separation
+of concerns.
+Comment, if needed, on the use of documentation comments.
+Only provide concrete constructive suggestions regarding possible
+improvements.
+Be succinct.
+If there is nothing important to report, just say so, e.g.
+"The code is generally OK" and be done.
+Do not summarize your findings.
+EOF
+
+    echo "File: $path"
+    cat "$repo/$path"
+
+  ) | query_ai |
+    sed 's/^#/##/'
 }
 
 report_source_code_php()
@@ -354,9 +440,10 @@ report_all_source_code()
 
   java_count=$(find "$repo" -name "*.java" | wc -l)
   php_count=$(find "$repo" -name "*.php" | wc -l)
+  ts_count=$(find "$repo" \( -name "*.ts" -o -name "*.tsx" \) | wc -l)
 
-  if (( java_count == 0 && php_count == 0 )); then
-    echo 'No Java or PHP files were found in the repository. Nothing to report.'
+  if (( java_count == 0 && php_count == 0 && ts_count == 0 )); then
+    echo 'No Java, PHP, or TypeScript files were found in the repository. Nothing to report.'
     return
   fi
 
@@ -369,13 +456,36 @@ EOF
   (
     cd "$repo"
 
-    find . -type f \( -name "*.java" -o -name "*.php" \) \
+
+# DEBUG: files skipped only because they exceed size limit
+# if [ "$debug" ]; then                                             Disabled for now
+  echo "DEBUG: files skipped due to size limit:" >&2
+
+  find . -type f \
+    \( -name "*.java" -o -name "*.php" -o -name "*.ts" -o -name "*.tsx" \) \
+    -not -path "*/vendor/*" \
+    -not -path "*/node_modules/*" \
+    -not -path "*/.git/*" \
+    -not -path "*/dist/*" \
+    -not -path "*/build/*" \
+    -not -path "*/out/*" \
+    -not -path "*/coverage/*" \
+    -not -path "*/.next/*" \
+    ! -size -80000c \
+    -printf "SKIPPED SIZE: %s bytes -> %p\n" >&2
+# fi
+
+
+    find . -type f \
+      \( -name "*.java" -o -name "*.php" -o -name "*.ts" -o -name "*.tsx" \) \
       -not -path "*/vendor/*" \
       -not -path "*/node_modules/*" \
       -not -path "*/.git/*" \
       -not -path "*/dist/*" \
       -not -path "*/build/*" \
       -not -path "*/out/*" \
+      -not -path "*/coverage/*" \
+      -not -path "*/.next/*" \
       -size -80000c \
       -printf "%s %p\n" |
     sort -nr |
@@ -392,6 +502,8 @@ EOF
       report_source_code_java "$repo" "$path" "4.$counter"
     elif [ "$lang" = "php" ]; then
       report_source_code_php "$repo" "$path" "4.$counter"
+    elif [ "$lang" = "typescript" ]; then
+      report_source_code_typescript "$repo" "$path" "4.$counter"
     else
       echo "WARNING: unknown file type -> $path" >&2
     fi
@@ -517,6 +629,8 @@ report()
     report_architecture_java "$repo"
   elif [ "$main_lang" = "php" ]; then
     report_architecture_php "$repo"
+  elif [ "$main_lang" = "typescript" ]; then
+    report_architecture_typescript "$repo"
   fi
 
   # DEBUG
